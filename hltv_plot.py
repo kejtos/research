@@ -33,7 +33,7 @@ table1[0]
 flat1 = ranks*0.020
 flat2 = np.exp(ranks)
 
-colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+# colors = plt.rcParams['axes.prop_cycle'].by_key()['color'] # in the end, it has to be black and white
 
 plt.figure(figsize=(10, 8))
 
@@ -53,20 +53,20 @@ for i in range(0, 12, 3):
     right_line_x = np.where(mask)[0].shape[0]*[np.where(anti_mast)[0][0]+2+i]
 
     plt.subplot(2, 2, int(i/3+1))
-    plt.fill_between(x[i][mask], 0, 5, color='#007FFF', alpha=0.1)
-    plt.step(x[i][:N_RANKS_PLOT], y, where='post', color=colors[0], label='Change using LOGDIF')
-    plt.fill_between(x[i][mask], table1[i][mask], (i+1)*0.02, step="post", color=colors[0], alpha=0.35)
-    plt.plot(x[i][:N_RANKS_PLOT], (N_RANKS_PLOT)*[(i+1)*0.02+0.0005], color=colors[1], label='Change using RANKDIF')
-    plt.plot(left_line_x, y[cross_rank_mask], color=colors[0])
+    plt.fill_between(x[i][mask], 0, 5, color='#E5E4E2',  alpha=1)
+    plt.step(x[i][:N_RANKS_PLOT], y, where='post', color='black', label='Change using LOGDIF')
+    plt.fill_between(x[i][mask], table1[i][mask], (i+1)*0.02, step="post", color='#D3D3D3', alpha=1)
+    plt.plot(x[i][:N_RANKS_PLOT], (N_RANKS_PLOT)*[(i+1)*0.02+0.0005], color='black', linestyle='--', dashes=(3, 2), label='Change using RANKDIF')
+    plt.plot(left_line_x, y[cross_rank_mask], color='black')
 
-    plt.plot(right_line_x, y2, markersize=8, linestyle='--', dashes=(5, 3), color='lightskyblue', label='Turning point')
+    plt.plot(right_line_x, y2, markersize=8, linestyle='dotted', color='black', label='Turning point')
     # plt.text(cross_rank[-1] + 0.3, (i+1)*0.02 + 0.005, f'Rank: {cross_rank[-1]}', fontsize=10)
     # plt.text(15, 0.7, f'{(1-PERCENTS[cross_rank[-1]])*100:.1f}% of games', fontsize=10, color='#FFC107')
     text_coos.append(cross_rank[-1])
     plt.xlabel('Rank of the weaker team after change')
     plt.ylabel('Change in log(odds) of favorite winning')
     plt.title(f'Change in RANKDIF by {i+1}')
-    plt.legend(loc='best', prop={'size': 8}, handlelength=0.5, markerscale=0.5)
+    plt.legend(loc='best', prop={'size': 8}, handlelength=1.7, markerscale=0.8)
 
     add_ticks = []
     if left_line_x[0] not in [10,20,30,40]:
@@ -82,7 +82,7 @@ for i in range(0, 12, 3):
 for i, ax in enumerate(plt.gcf().get_axes()):
     ax.set_xlim(ises[i]+2, ises[i]+34)
     ax.set_ylim(0, np.ceil(y[0]*1.05))
-    ax.text(0.3, 0.65, f'{(1-PERCENTS[text_coos[i]])*100:.1f}% of games', fontsize=10, color='#1f77b4', transform=ax.transAxes)
+    ax.text(0.3, 0.65, f'{(1-PERCENTS[text_coos[i]])*100:.1f}% of games', fontsize=10, color='black', transform=ax.transAxes)
     ax.text(text_coos[i] + 0.3, (i+1)*0.02 + 0.005, f'Rank: {text_coos[i]}', fontsize=10, transform=ax.transAxes)
 
 plt.subplots_adjust(hspace=0.35)
