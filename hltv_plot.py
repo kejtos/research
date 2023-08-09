@@ -28,7 +28,7 @@ for i in range(1,50):
     x.append(np.arange(2+i, table1[i-1].shape[0]+2+i))
 
 maxes = [seq[0] for seq in table1]
-table1[0]
+table1[0:5]
 
 flat1 = ranks*0.020
 flat2 = np.exp(ranks)
@@ -39,7 +39,7 @@ plt.figure(figsize=(10, 8))
 
 text_coos = []
 ises = []
-for i in range(0, 12, 3):
+for i, letter in zip(range(0, 12, 3), ['A', 'B', 'C', 'D']):
     ises.append(i)
     y = table1[i][:N_RANKS_PLOT]
     cross_rank_mask = y > (i+1)*0.02
@@ -65,7 +65,7 @@ for i in range(0, 12, 3):
     text_coos.append(cross_rank[-1])
     plt.xlabel('Rank of the weaker team after change')
     plt.ylabel('Change in log(odds) of favorite winning')
-    plt.title(f'Change in RANKDIF by {i+1}')
+    plt.title(f'{letter}. Change in RANKDIF by {i+1}')
     plt.legend(loc='best', prop={'size': 8}, handlelength=1.7, markerscale=0.8)
 
     add_ticks = []
@@ -82,7 +82,7 @@ for i in range(0, 12, 3):
 for i, ax in enumerate(plt.gcf().get_axes()):
     ax.set_xlim(ises[i]+2, ises[i]+34)
     ax.set_ylim(0, np.ceil(y[0]*1.05))
-    ax.text(0.3, 0.65, f'{(1-PERCENTS[text_coos[i]])*100:.1f}% of games', fontsize=10, color='black', transform=ax.transAxes)
+    ax.text(0.3, 0.65, f'{(1-PERCENTS[text_coos[i]])*100:.1f}% of matches', fontsize=10, color='black', transform=ax.transAxes)
     ax.text(text_coos[i] + 0.3, (i+1)*0.02 + 0.005, f'Rank: {text_coos[i]}', fontsize=10, transform=ax.transAxes)
 
 plt.subplots_adjust(hspace=0.35)
