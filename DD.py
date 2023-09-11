@@ -26,7 +26,7 @@ for player, zipname in enumerate(list_zipfiles, 1):
     n_scen += len(list_of_names)
 dict_scenario_names = {player: name for player, name in zip(players, list_sets_scenario_names)}
 
-list_of_regs = ['(?i)reflex', '(?i)flick', '(?i)microshot','(?i)micro shot','(?i)microshots','(?i)micro shots', '(?i)speed', '(?i)timing']
+list_of_regs = ['(?i)reflex', '(?i)flick', '(?i)microshot','(?i)micro shot','(?i)microshots','(?i)micro shots', '(?i)speed', '(?i)timing', '(?i)popcorn'] # I added popcorn!
 flick_scens = set()
 for key, names in dict_scenario_names.items():
     for name in names:
@@ -34,11 +34,11 @@ for key, names in dict_scenario_names.items():
             if re.search(regex, name):
                 flick_scens.add(name)
 
-flick_delete = ['Reflex Poke-Micro++ Regenerating Goated', 'VT Multiclick 120 Intermediate Speed Focus LG56', 'Close flick v2', "KovaaK's League S6 - beanClick 250% Speed", 'Flicker Plaza No Strafes Dash Master', 'Floating Heads Timing Easy','Fireworks Flick [x-small]',
-               'Target Acquisition Flick Small 400ms', 'Houston Outlaws - Speed Switching', 'psalmflick TPS Strafing', 'VT Pasu Rasp Intermediate Speed Focus LG56', 'Target Acquisition Flick Easy', 'Valorant Small Flicks', 'Flicker Plaza Hard',
-               'Flicker XYZ', 'Flip off Flick Random', 'Jumbo Tile Frenzy Flick 180', 'Flicker Plaza', 'Tamspeed 2bpes', 'e1se Braking Reflex Flick EASY', 'Target Acquisition Flick', 'VSS GP9 +50% speed', 'Floating Heads Timing 400% no mag',
-               'Reflex Tracking a+', 'Target Acquisition Flick 350ms', 'Flicker XYZ Easy','FuglaaXYZ Voltaic No Blinks but the bot has taken a speed potion', 'KovaaK_s League S6 - beanClick 250_ Speed', 'Tamspeed 2bp Bronze', 'Floating Heads Timing 400_',
-               'Ground Plaza Voltaic 1 Invincible Always Dash Speed No Dash', 'Flicker Plaza Grandmaster', '1wall2targets_smallflicks 60s', 'PlasmaFlick 180', 'Reactive Flick to Track', 'Target Acquisition Flick Small', 'Floating Heads Timing 400%', 'Eclipse Flick Warmup']
+flick_delete = [r'Reflex Poke-Micro++ Regenerating Goated', r'VT Multiclick 120 Intermediate Speed Focus LG56', r'Close flick v2', r"KovaaK's League S6 - beanClick 250% Speed", r'Flicker Plaza No Strafes Dash Master', r'Floating Heads Timing Easy',r'Fireworks Flick [x-small]',
+               r'Target Acquisition Flick Small 400ms', r'Houston Outlaws - Speed Switching', r'psalmflick TPS Strafing', r'VT Pasu Rasp Intermediate Speed Focus LG56', r'Target Acquisition Flick Easy', r'Valorant Small Flicks', r'Flicker Plaza Hard',
+               r'Flicker XYZ', r'Flip off Flick Random', r'Jumbo Tile Frenzy Flick 180', r'Flicker Plaza', r'Tamspeed 2bpes', r'e1se Braking Reflex Flick EASY', r'Target Acquisition Flick', r'VSS GP9 +50% speed', 'Floating Heads Timing 400% no mag',
+               r'Reflex Tracking a+', r'Target Acquisition Flick 350ms', r'Flicker XYZ Easy', r'FuglaaXYZ Voltaic No Blinks but the bot has taken a speed potion', r'KovaaK_s League S6 - beanClick 250_ Speed', r'Tamspeed 2bp Bronze', r'Floating Heads Timing 400_',
+               r'Ground Plaza Voltaic 1 Invincible Always Dash Speed No Dash', r'Flicker Plaza Grandmaster', r'1wall2targets_smallflicks 60s', r'PlasmaFlick 180', r'Reactive Flick to Track', r'Target Acquisition Flick Small', r'Floating Heads Timing 400%', r'Eclipse Flick Warmup']
 
 flick_scens = [scen for scen in flick_scens if scen not in flick_delete]
 all_scens = flick_scens + tile_frenzies
