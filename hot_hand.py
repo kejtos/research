@@ -10,7 +10,7 @@ from functions import *
 
 ## --- SETUP --- ###
 percentiles = np.array([95, 99]) # percentiles for plots
-reps = 10_000 # number of permutations
+reps = 1_000 # number of permutations
 k = 3 # length of strings
 
 directory = 'D:\\Plocha\\Doktorát\\Hot hand\\Data\\'
@@ -66,67 +66,47 @@ np_shots = df.loc[(df['Accuracy'] <= 0.9) & (df['Accuracy'] >= 0.1), 'String_of_
 n_runs = np_shots.shape[0]
 #------------------------------------------------------------------------------------------------------------------------#
 
-### --- SERIAL DEPENDENCY --- ###
+### --- CALCULATIONS --- ###
 faulty_shots = []
-p_vals = np.zeros((n_runs, 3))
+p_vals_dep = np.zeros((n_runs, 3))
+D_hat = np.zeros(n_runs)
+P_hat_p = np.zeros(n_runs)
 mask = np.zeros((n_runs))
+p_vals_ent = np.zeros(n_runs)
+t_stats_Pp_dist = np.zeros((n_runs,reps))
+t_stats_D_dist = np.zeros((n_runs,reps))
+
 for i in range(n_runs):
-    dependence_arr = np_shots[i,]
+    arr = np_shots[i,].copy()
     try:
-        D_had_p_value, P_hat_p_p_value = get_p_values(dependence_arr, reps=reps, k=k)
-        p_vals[i,0] = D_had_p_value
-        p_vals[i,1] = P_hat_p_p_value
+        D_had_p_value, P_hat_p_p_value = get_p_values(arr, reps=reps, k=k)
+        p_vals_dep[i,0] = D_had_p_value
+        p_vals_dep[i,1] = P_hat_p_p_value
         mask[i] = True
     except ValueError:
-        p_vals[i,0] = np.nan
-        p_vals[i,1] = np.nan
+        p_vals_dep[i,0] = np.nan
+        p_vals_dep[i,1] = np.nan
         faulty_shots.append(np_shots[i,])
         mask[i] = False
-    p_vals[i,2] = i
+    p_vals_dep[i,2] = i
+
+    if mask[i]:
+        # ENTROPY
+        H_s = entropy(arr)
+        H_s_dist = entropy_dist(shots=arr, reps=reps, seed=42)
+        p_vals_ent[i] = entropy_pval(stat=H_s, dist=H_s_dist)
+
+        D_hat_dist, P_hat_p_dist, _ = get_D_hat_P_hat_p_dists(shots=arr, k=k, reps=reps*3, seed=42)
+        t_stats_D_dist[i,] = D_hat_dist[:reps]
+        t_stats_Pp_dist[i,] = P_hat_p_dist[:reps]
+        D_hat[i], P_hat_p[i], _ = get_D_hat_P_hat_p(shots=arr, reps=1, k=k)
 
 np_shots = np_shots[np.array(mask, dtype='bool')]
 n_runs = np_shots.shape[0]
-p_vals_notnan = p_vals[~np.isnan(p_vals).any(axis=1)]
+p_vals_notnan = p_vals_dep[~np.isnan(p_vals_dep).any(axis=1)]
 
 D_had_p_values = np.sort(p_vals_notnan[:,0])
 P_hat_p_p_value = np.sort(p_vals_notnan[:,1])
-
-np.min(P_hat_p_p_value)
-
-hot_hands_D = get_n_rejets(p_values=D_had_p_values, alpha=0.05, sidak=False)
-hot_hands_P_p = get_n_rejets(p_values=P_hat_p_p_value, alpha=0.05, sidak=False)
-hot_hands_D_sidak = get_n_rejets(p_values=D_had_p_values, alpha=0.05, sidak=True)
-hot_hands_P_p_sidak = get_n_rejets(p_values=P_hat_p_p_value, alpha=0.05, sidak=True)
-hot_hands_D_FDR = get_FDR(p_values=D_had_p_values, alpha=0.05)
-hot_hands_P_p_FDR = get_FDR(p_values=P_hat_p_p_value, alpha=0.05)
-#------------------------------------------------------------------------------------------------------------------------#
-
-### --- JOINT INFERENCE --- ###
-t_stats_Pp_dist = np.zeros((n_runs,reps))
-t_stats_D_dist = np.zeros((n_runs,reps))
-D_hat = np.zeros(n_runs)
-P_hat_p = np.zeros(n_runs)
-for i in range(n_runs):
-    dependence_arr = np_shots[i,]
-    D_hat_dist, P_hat_p_dist, _ = get_D_hat_P_hat_p_dists(shots=dependence_arr, k=k, reps=reps*2, seed=42)
-    repos = 3
-    while D_hat_dist.size < reps or P_hat_p_dist.size < reps:
-        D_hat_dist, P_hat_p_dist, _ = get_D_hat_P_hat_p_dists(shots=dependence_arr, k=k, reps=reps*repos, seed=42)
-        repos += 1
-    t_stats_D_dist[i,] = D_hat_dist[:reps]
-    t_stats_Pp_dist[i,] = P_hat_p_dist[:reps]
-
-    try:
-        D_hat[i], P_hat_p[i], _ = get_D_hat_P_hat_p(shots=dependence_arr, reps=1, k=k)
-    except ValueError:
-        try:
-            D_hat[i] = get_D_hat_P_hat_p(shots=dependence_arr, reps=1, k=k)[0]
-        except ValueError:
-            D_hat[i] = np.nan
-        try:
-            P_hat_p[i] = get_D_hat_P_hat_p(shots=dependence_arr, reps=1, k=k)[1]
-        except ValueError:
-            P_hat_p[i] = np.nan
 
 mean_D_dist = np.mean(t_stats_D_dist, axis=0)
 mean_Pp_dist = np.mean(t_stats_Pp_dist, axis=0)
@@ -135,54 +115,53 @@ mean_Pp = np.mean(P_hat_p, axis=0)
 
 D_had_al = perc_sc(mean_D_dist, mean_D, kind='rank')
 P_hat_p_al = perc_sc(P_hat_p_dist, mean_Pp, kind='rank')
-D_had_p_value = ne.evaluate('(100-D_had_al)/100')
-P_hat_p_p_value = ne.evaluate('(100-P_hat_p_al)/100')
-#------------------------------------------------------------------------------------------------------------------------#
+D_had_p_value_j = ne.evaluate('(100-D_had_al)/100')
+P_hat_p_p_value_j = ne.evaluate('(100-P_hat_p_al)/100')
 
-### --- ENTROPY --- ###
-faulty_shots = []
-n_runs = np_shots.shape[0]
-p_vals = np.zeros(n_runs)
-
-for i in range(n_runs):
-    entropy_arr = np_shots[i,]
-    H_s = entropy(entropy_arr)
-    H_s_dist = entropy_dist(shots=entropy_arr, reps=reps, seed=42)
-    p_vals[i] = entropy_pval(stat=H_s, dist=H_s_dist)
-
-np.min(p_vals)
-p_vals[np.argsort(p_vals)[:7]]
-
-hot_hands_ent = get_n_rejets(p_values=p_vals, alpha=0.05, sidak=False)
-hot_hands_ent_sidak = get_n_rejets(p_values=p_vals, alpha=0.05, sidak=True)
-hot_hands_ent_FDR = get_FDR(p_values=p_vals, alpha=0.05)
+hot_hands_D = get_n_rejets(p_values=D_had_p_values, alpha=0.05, sidak=False)
+hot_hands_P_p = get_n_rejets(p_values=P_hat_p_p_value, alpha=0.05, sidak=False)
+hot_hands_D_sidak = get_n_rejets(p_values=D_had_p_values, alpha=0.05, sidak=True)
+hot_hands_P_p_sidak = get_n_rejets(p_values=P_hat_p_p_value, alpha=0.05, sidak=True)
+hot_hands_D_FDR = get_FDR(p_values=D_had_p_values, alpha=0.05)
+hot_hands_P_p_FDR = get_FDR(p_values=P_hat_p_p_value, alpha=0.05)
+hot_hands_ent = get_n_rejets(p_values=p_vals_ent, alpha=0.05, sidak=False)
+hot_hands_ent_sidak = get_n_rejets(p_values=p_vals_ent, alpha=0.05, sidak=True)
+hot_hands_ent_FDR = get_FDR(p_values=p_vals_ent, alpha=0.05)
 #------------------------------------------------------------------------------------------------------------------------#
 
 ### --- PRINTS --- ###
-print(f'''REJECTIONS
-\n
-DEPENDENCE
-         Tested runs:    {p_vals_notnan.shape[0]}
+print(f'''\n
+Tested runs:    {p_vals_notnan.shape[0]}\n
+
+<<< --- DEPENDENCE --- >>>\n
+
+SIMULTANEOUS
  Individual   <D, P>:   <{hot_hands_D}, {hot_hands_P_p}>
        FWER   <D, P>:   <{hot_hands_D_sidak}, {hot_hands_P_p_sidak}>
         FDR   <D, P>:   <{hot_hands_D_FDR}, {hot_hands_P_p_FDR}>
-\n
-JOINT
-Joint P <t, p-value>: <{mean_Pp}, {D_had_p_value}>
-Joint D <t, p-value>: <{mean_D}, {P_hat_p_p_value}>
-\n
-ENTROPY
-         Individual: {hot_hands_ent}
-               FWER: {hot_hands_ent_sidak}
-                FDR: {hot_hands_ent_FDR}''')
+
+JOINT\n
+Joint P <t, p-value>: <{mean_Pp:.4f}, {D_had_p_value_j:.4f}>
+Joint D <t, p-value>: <{mean_D:.4f}, {P_hat_p_p_value_j:.4f}>
+
+<<< --- ENTROPY --- >>>\n
+
+SIMULTANEOUS\n
+          Individual: {hot_hands_ent}
+                FWER: {hot_hands_ent_sidak}
+                 FDR: {hot_hands_ent_FDR}
+
+JOINT\n
+  Joint <t, p-value>: {mean_D:.4f}
+''')
 #------------------------------------------------------------------------------------------------------------------------#
 
 ### --- SERIAL DEPENDENCE PLOT --- ###
-dependence_arr = np_shots[324,]
-dependence_arr
+arr = np_shots[324,]
+arr
 
-D_hat, P_hat_p, p = get_D_hat_P_hat_p(shots=dependence_arr, reps=1, k=k)
-D_hat_dist, P_hat_p_dist, _ = get_D_hat_P_hat_p_dists(shots=dependence_arr, k=k, reps=reps, seed=42)
+D_hat, P_hat_p, p = get_D_hat_P_hat_p(shots=arr, reps=1, k=k)
+D_hat_dist, P_hat_p_dist, _ = get_D_hat_P_hat_p_dists(shots=arr, k=k, reps=reps, seed=42)
 
 plt_D_hat, ax_D_hat = plot_stat_dist(stat_distribution=D_hat_dist, stat=D_hat, percentiles=percentiles, bins=50)
 ax_D_hat.axis([-0.0, 1.2, 0, 17000])
@@ -207,12 +186,11 @@ plt_P_hat_p.show()
 #------------------------------------------------------------------------------------------------------------------------#
 
 ### --- ENTROPY PLOT --- ###
-entropy_arr = np_shots[1,]
+arr = np_shots[1,]
 
-H_s = entropy(entropy_arr)
-H_s_dist = entropy_dist(shots=entropy_arr, reps=reps, seed=42)
+H_s = entropy(arr)
+H_s_dist = entropy_dist(shots=arr, reps=reps, seed=42)
 p_val = entropy_pval(stat=H_s, dist=H_s_dist)
-p_val
 
 plt_H_s, ax_H_s = plot_ent_dist(stat_distribution=H_s_dist, stat=H_s, percentiles=100-percentiles, bins=50)
 ax_H_s.spines[['right', 'top']].set_visible(False)
