@@ -87,7 +87,7 @@ def create_df_from_zipcsvs(list_zipfiles: list[str], names_of_scenarios: list[st
     return(df)
 
 
-def get_P_hat_and_p(shots: npt.ArrayLike, reps: int, k: int) -> np.ndarray: # Need a rewrite in pytorch
+def get_P_hat_and_p(shots: npt.ArrayLike, reps: int, k: int) -> np.ndarray:
     arr = np.concatenate(([0], shots.flatten(), [0]))
     absdiff = np.abs(np.diff(arr))
     ranges = np.flatnonzero(absdiff == 1).reshape(-1, 2)
@@ -127,9 +127,10 @@ def get_P_hat_and_p(shots: npt.ArrayLike, reps: int, k: int) -> np.ndarray: # Ne
 
 
 def get_D_hat_P_hat_p(shots: npt.ArrayLike, reps: int, k: int) -> np.ndarray:
-    P_hat_1, p, P_hat_p = get_P_hat_and_p(shots = shots, reps = reps, k = k)
-    shots = 1-shots
-    P_hat_0, _, _ = get_P_hat_and_p(shots = shots, reps = reps, k = k)
+    arr = shots.copy()
+    P_hat_1, p, P_hat_p = get_P_hat_and_p(shots = arr, reps = reps, k = k)
+    arr = 1-arr
+    P_hat_0, _, _ = get_P_hat_and_p(shots = arr, reps = reps, k = k)
     D_hat = ne.evaluate('P_hat_1 - P_hat_0')
     D_hat = D_hat[np.isfinite(D_hat)]
     P_hat_p = P_hat_p[np.isfinite(P_hat_p)]
@@ -138,8 +139,7 @@ def get_D_hat_P_hat_p(shots: npt.ArrayLike, reps: int, k: int) -> np.ndarray:
 
 def get_D_hat_P_hat_p_dists(shots: npt.ArrayLike, k: int, reps: int, seed: int) -> np.ndarray:
     rng = np.random.default_rng(seed)
-    arr = shots.copy()
-    array_of_arrays = np.tile(arr, (reps,1))
+    array_of_arrays = np.tile(shots, (reps,1))
     array_of_arrays = rng.permuted(array_of_arrays, axis = 1)
     D_hat, P_hat_p, p = get_D_hat_P_hat_p(shots = array_of_arrays, reps = reps, k = k)
     return(D_hat, P_hat_p, p)
@@ -174,7 +174,7 @@ def plot_stat_dist(stat_distribution: npt.ArrayLike, stat: float, percentiles: l
 
 
 def get_p_values(shots: npt.ArrayLike, reps: int, k : int) -> np.ndarray:
-    D_hat, P_hat_p, p = get_D_hat_P_hat_p(shots = shots, reps = 1, k = k)
+    D_hat, P_hat_p, _ = get_D_hat_P_hat_p(shots = shots, reps = 1, k = k)
     D_hat_dist, P_hat_p_dist, _ = get_D_hat_P_hat_p_dists(shots = shots, k = k, reps = reps, seed = 42)
     D_had_al = perc_sc(D_hat_dist, D_hat, kind = 'rank')
     P_hat_p_al = perc_sc(P_hat_p_dist, P_hat_p, kind = 'rank')
@@ -207,7 +207,8 @@ def get_FDR(p_values: npt.ArrayLike, alpha: int) -> int:
 
 
 def entropy(shots: npt.ArrayLike):
-    a = np.concatenate(([1],shots,[1]))
+    arr = shots.copy()
+    a = np.concatenate(([1],arr,[1]))
     a_ixs = np.flatnonzero(a == 1)
     x_i = np.diff(a_ixs)
     H_s = -np.sum(x_i*np.log(x_i))
