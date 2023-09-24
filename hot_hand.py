@@ -1,12 +1,12 @@
 import numpy as np
-import functions
-from functions import *
+import research.functions as functions
+from research.functions import *
 import importlib
 import numexpr as ne
 from scipy.stats import percentileofscore as perc_sc
 
 importlib.reload(functions)
-from functions import *
+from research.functions import *
 
 ## --- SETUP --- ###
 percentiles = np.array([95, 99]) # percentiles for plots
@@ -71,13 +71,16 @@ faulty_shots = []
 p_vals_dep = np.zeros((n_runs, 3))
 D_hat = np.zeros(n_runs)
 P_hat_p = np.zeros(n_runs)
-mask = np.zeros((n_runs))
+entropies = np.zeros(n_runs)
+mask = np.zeros((n_runs), dtype='bool')
 p_vals_ent = np.zeros(n_runs)
 t_stats_Pp_dist = np.zeros((n_runs,reps))
 t_stats_D_dist = np.zeros((n_runs,reps))
+entropy_dists = np.zeros((n_runs,reps))
 
 for i in range(n_runs):
     arr = np_shots[i,].copy()
+    # DEPENDENCE SIMULTANEOUS
     try:
         D_had_p_value, P_hat_p_p_value = get_p_values(arr, reps=reps, k=k)
         p_vals_dep[i,0] = D_had_p_value
@@ -87,21 +90,28 @@ for i in range(n_runs):
         p_vals_dep[i,0] = np.nan
         p_vals_dep[i,1] = np.nan
         faulty_shots.append(np_shots[i,])
-        mask[i] = False
     p_vals_dep[i,2] = i
 
     if mask[i]:
-        # ENTROPY
-        H_s = entropy(arr)
-        H_s_dist = entropy_dist(shots=arr, reps=reps, seed=42)
-        p_vals_ent[i] = entropy_pval(stat=H_s, dist=H_s_dist)
-
-        D_hat_dist, P_hat_p_dist, _ = get_D_hat_P_hat_p_dists(shots=arr, k=k, reps=reps*3, seed=42)
+        # DEPENDENCE JOINT
+        repos = 3
+        D_hat_dist, P_hat_p_dist, _ = get_D_hat_P_hat_p_dists(shots=arr, k=k, reps=reps*repos, seed=42)
+        while D_hat_dist.size < reps or P_hat_p_dist.size < reps:
+            D_hat_dist, P_hat_p_dist, _ = get_D_hat_P_hat_p_dists(shots=arr, k=k, reps=reps*repos, seed=42)
+            repos += 1
         t_stats_D_dist[i,] = D_hat_dist[:reps]
         t_stats_Pp_dist[i,] = P_hat_p_dist[:reps]
         D_hat[i], P_hat_p[i], _ = get_D_hat_P_hat_p(shots=arr, reps=1, k=k)
+        # ENTROPY SIMULTANEOUS
+        H_s = entropy(arr)
+        H_s_dist = entropy_dist(shots=arr, reps=reps, seed=42)
+        p_vals_ent[i] = entropy_pval(stat=H_s, dist=H_s_dist)
+        # ENTROPY JOINT
+        entropy_dists[i,] = H_s_dist
+        entropies[i,] = H_s
 
-np_shots = np_shots[np.array(mask, dtype='bool')]
+np_shots, t_stats_D_dist, t_stats_Pp_dist, D_hat, P_hat_p, p_vals_ent, entropy_dists, entropies = np_shots[mask], t_stats_D_dist[mask], t_stats_Pp_dist[mask], D_hat[mask], P_hat_p[mask], p_vals_ent[mask], entropy_dists[mask], entropies[mask]
+
 n_runs = np_shots.shape[0]
 p_vals_notnan = p_vals_dep[~np.isnan(p_vals_dep).any(axis=1)]
 
@@ -113,10 +123,15 @@ mean_Pp_dist = np.mean(t_stats_Pp_dist, axis=0)
 mean_D = np.mean(D_hat, axis=0)
 mean_Pp = np.mean(P_hat_p, axis=0)
 
-D_had_al = perc_sc(mean_D_dist, mean_D, kind='rank')
-P_hat_p_al = perc_sc(P_hat_p_dist, mean_Pp, kind='rank')
-D_had_p_value_j = ne.evaluate('(100-D_had_al)/100')
-P_hat_p_p_value_j = ne.evaluate('(100-P_hat_p_al)/100')
+D_hat_p_val = perc_sc(mean_D_dist, mean_D, kind='rank')
+P_hat_p_val = perc_sc(P_hat_p_dist, mean_Pp, kind='rank')
+D_hat_p_val_j = ne.evaluate('(100-D_hat_p_val)/100')
+P_hat_p_p_val_j = ne.evaluate('(100-P_hat_p_val)/100')
+
+mean_entropy_dist = np.mean(entropy_dists, axis=0)
+mean_entropy = np.mean(entropies, axis=0)
+entropy_p_val = perc_sc(mean_entropy_dist, mean_entropy, kind='rank')
+entropy_p_val_j = ne.evaluate('(100-entropy_p_val)/100')
 
 hot_hands_D = get_n_rejets(p_values=D_had_p_values, alpha=0.05, sidak=False)
 hot_hands_P_p = get_n_rejets(p_values=P_hat_p_p_value, alpha=0.05, sidak=False)
@@ -138,21 +153,21 @@ Tested runs:    {p_vals_notnan.shape[0]}\n
 SIMULTANEOUS
  Individual   <D, P>:   <{hot_hands_D}, {hot_hands_P_p}>
        FWER   <D, P>:   <{hot_hands_D_sidak}, {hot_hands_P_p_sidak}>
-        FDR   <D, P>:   <{hot_hands_D_FDR}, {hot_hands_P_p_FDR}>
+        FDR   <D, P>:   <{hot_hands_D_FDR}, {hot_hands_P_p_FDR}>\n
 
-JOINT\n
-Joint P <t, p-value>: <{mean_Pp:.4f}, {D_had_p_value_j:.4f}>
-Joint D <t, p-value>: <{mean_D:.4f}, {P_hat_p_p_value_j:.4f}>
+JOINT
+Joint P <t, p-value>: <{mean_Pp:.4f}, {D_hat_p_val_j:.4f}>
+Joint D <t, p-value>: <{mean_D:.4f}, {P_hat_p_p_val_j:.4f}>\n
 
 <<< --- ENTROPY --- >>>\n
 
-SIMULTANEOUS\n
+SIMULTANEOUS
           Individual: {hot_hands_ent}
                 FWER: {hot_hands_ent_sidak}
-                 FDR: {hot_hands_ent_FDR}
+                 FDR: {hot_hands_ent_FDR}\n
 
-JOINT\n
-  Joint <t, p-value>: {mean_D:.4f}
+JOINT
+  Joint <t, p-value>: {mean_entropy:.4f}, {entropy_p_val_j:.4f}
 ''')
 #------------------------------------------------------------------------------------------------------------------------#
 
